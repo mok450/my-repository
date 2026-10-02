@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蝴蝶标本制作</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft YaHei", "Microsoft Yahei", sans-serif; }
+    :root {
+        --ink: #44382b;
+        --brown: #6b5848;
+        --brown-lt: #8c735e;
+        --paper: #f8f3e6;
+        --line: #e0d4bd;
+    }
+    body { background-color: var(--paper); color: var(--ink); }
+
+    /* ---------- 页面区块，默认隐藏 ---------- */
+    .page { display: none; min-height: 100vh; padding: 90px 24px 60px; text-align: center; }
+    .page.active { display: block; animation: fadeIn .35s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+    h1 { color: var(--ink); font-size: 34px; margin-bottom: 14px; letter-spacing: 2px; }
+    .tip-text { font-size: 18px; color: #55493b; margin-bottom: 30px; }
+
+    button {
+        padding: 14px 32px; font-size: 18px; border: none; background: var(--brown);
+        color: #fff; border-radius: 10px; cursor: pointer; transition: .3s; margin: 6px;
+    }
+    button:hover { background-color: var(--brown-lt); transform: translateY(-2px); }
+    button:disabled { background: #c9bdae; cursor: not-allowed; transform: none; }
+    button.ghost { background: transparent; color: var(--brown); border: 2px solid var(--brown); }
+    button.ghost:hover { background: #efe6d5; color: var(--ink); }
+
+    /* ---------- 蝴蝶选择 ---------- */
+    .butterfly-box { display: flex; justify-content: center; gap: 40px; margin-top: 30px; flex-wrap: wrap; }
+    .butterfly-item {
+        background: #fffdf7; border: 2px solid var(--line); border-radius: 14px;
+        padding: 18px; box-shadow: 0 4px 12px #00000014; cursor: pointer; transition: .3s;
+        width: 420px; max-width: 100%;
+    }
+    .butterfly-item:hover { transform: scale(1.03); border-color: var(--brown-lt); box-shadow: 0 10px 22px #00000022; }
+    .butterfly-item .pic {
+        width: 100%; height: 320px; border-radius: 10px; background: #f3ecdd;
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .butterfly-preview {
+        width: min(100%, 300px); height: auto; display: block;
+        filter: drop-shadow(0 10px 12px #4b32191c);
+    }
+    .butterfly-item .name { margin-top: 12px; font-size: 17px; color: #55493b; letter-spacing: 1px; }
+    .butterfly-item .name b { color: var(--brown); }
+
+    /* ---------- 制作页 ---------- */
+    .maker { max-width: 1040px; margin: 0 auto; }
+    .specimen-info {
+        display: inline-block; padding: 8px 20px; border-radius: 999px;
+        background: #efe6d5; color: #55493b; font-size: 16px; margin-bottom: 26px;
+    }
+    .maker-grid { display: flex; gap: 34px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+
+    /* 标本台 */
+    .stage {
+        position: relative; flex: 0 0 420px; width: 420px; max-width: 100%; background: #fdf9f0;
+        border: 2px solid var(--line); border-radius: 16px; padding: 10px; box-shadow: 0 6px 18px #00000012;
+    }
+    .stage svg { width: 100%; height: auto; display: block; position: relative; z-index: 2; transition: opacity .5s ease; }
+    .stage.has-photo #specimen { opacity: 0; visibility: hidden; }
+    .photo-hint {
+        display: none; position: absolute; top: 8px; left: 8px; z-index: 6;
+        background: #fffdf7cc; border: 1px solid var(--line); border-radius: 999px;
+        padding: 2px 10px; font-size: 12px; color: #7d6d59;
+    }
+    .stage.has-photo .photo-hint { display: block; }
+
+    /* 实拍照片：用 background 取图，加载失败可优雅降级；下方倒影近似"标本盒玻璃" */
+    .photo {
+        position: absolute; left: 50%; top: 50%; z-index: 4; width: min(84%, 340px); aspect-ratio: 4 / 3;
+        transform: translate(-50%, -50%) scale(.9); opacity: 0; pointer-events: none;
+        background-image: var(--photo); background-repeat: no-repeat;
+        background-position: center; background-size: contain;
+        filter: drop-shadow(0 14px 18px #3b2b1d22);
+        transition: transform .9s cubic-bezier(.4,0,.2,1), opacity .6s ease;
+    }
+    .stage.has-photo:not(.opened) .photo { opacity: 1; transform: translate(-50%, -50%) scale(.9); }
+    .stage.opened .photo { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .stage.finish .photo { opacity: 1; transform: translate(-50%, -50%) scale(.96); }
+    .photo.failed { display: none; }
+
+    /* 标本台形态 */
+    .wing { transition: transform 1s cubic-bezier(.4,0,.2,1); transform-origin: 150px 150px; }
+    .stage:not(.opened) .wing.left { transform: scaleX(.32) translateX(52px); }
+    .stage:not(.opened) .wing.right { transform: scaleX(.32) translateX(-52px); }
+    .stage.soften .pin { opacity: 0; }
+    .stage.pinned .pin { opacity: 1; }
+    .pin { opacity: 0; transition: opacity .4s ease; }
+    .board-lines { opacity: 0; transition: opacity .5s ease; }
+    .stage.board .board-lines { opacity: 1; }
+
+    /* 步骤面板 */
+    .panel { flex: 1 1 380px; min-width: 320px; max-width: 460px; text-align: left; }
+    .steps { display: flex; gap: 6px; margin-bottom: 22px; flex-wrap: wrap; }
+    .step-dot {
+        flex: 1 1 0; min-width: 56px; text-align: center; font-size: 13px; color: #9a8b78;
+        padding: 8px 4px 10px; border-bottom: 3px solid var(--line); transition: .3s; cursor: default;
+    }
+    .step-dot .idx {
+        display: block; width: 24px; height: 24px; line-height: 24px; margin: 0 auto 6px;
+        border-radius: 50%; background: #e6dcc9; color: #7d6d59; font-size: 13px; transition: .3s;
+    }
+    .step-dot.done { color: var(--brown); border-color: #b9a68e; }
+    .step-dot.done .idx { background: #b9a68e; color: #fff; }
+    .step-dot.now { color: var(--ink); border-color: var(--brown); font-weight: 700; }
+    .step-dot.now .idx { background: var(--brown); color: #fff; transform: scale(1.12); }
+
+    .card { background: #fffdf7; border: 2px solid var(--line); border-radius: 14px; padding: 24px 26px; }
+    .card .stage-no { font-size: 13px; letter-spacing: 2px; color: #9a8b78; }
+    .card h2 { font-size: 24px; margin: 6px 0 12px; }
+    .card p { font-size: 16px; line-height: 1.9; color: #55493b; }
+    .card ul { margin: 14px 0 0 20px; }
+    .card li { font-size: 15px; line-height: 1.9; color: #6b5c4a; }
+    .progress { height: 8px; background: #e6dcc9; border-radius: 999px; margin: 20px 0 22px; overflow: hidden; }
+    .progress i { display: block; height: 100%; width: 20%; background: var(--brown); border-radius: 999px; transition: width .45s ease; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .done-badge { display: none; margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: #e9f0e2; color: #4a6135; font-size: 15px; }
+    .done-badge.show { display: block; }
+
+    /* ---------- 参考原图查看器 ---------- */
+    .viewer {
+        position: fixed; inset: 0; z-index: 120; background: #1d171299; backdrop-filter: blur(4px);
+        display: none; align-items: center; justify-content: center; padding: 32px;
+    }
+    .viewer.show { display: flex; }
+    .viewer-inner { text-align: center; animation: pop .28s ease both; }
+    .viewer img {
+        max-width: 88vw; max-height: 76vh; border-radius: 12px; background: #fffdf7;
+        box-shadow: 0 20px 50px #00000055; display: block; margin: 0 auto;
+    }
+    .viewer .cap { margin-top: 16px; color: #f3ead9; font-size: 15px; letter-spacing: 1px; }
+
+    /* ---------- 欢迎弹窗 ---------- */
+    .mask {
+        position: fixed; inset: 0; background: #2b231b88; backdrop-filter: blur(3px);
+        display: none; align-items: center; justify-content: center; padding: 24px; z-index: 99;
+    }
+    .mask.show { display: flex; }
+    .modal {
+        background: var(--paper); border-radius: 18px; padding: 36px 32px; max-width: 460px; width: 100%;
+        box-shadow: 0 20px 50px #00000044; animation: pop .3s ease both;
+    }
+    @keyframes pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+    .modal h2 { font-size: 22px; margin-bottom: 14px; }
+    .modal p { font-size: 16px; line-height: 1.9; color: #55493b; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<!-- 兜底图形：照片缺失时仍可看流程 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <g id="b1-wings">
+            <path d="M150 150 C 138 96, 104 48, 58 34 C 12 20, 4 66, 30 108 C 44 130, 56 140, 66 148 C 52 152, 40 162, 34 176 C 20 206, 52 226, 94 218 C 122 212, 142 192, 150 172 Z"
+                  fill="#d9832f" stroke="#7d4212" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M150 150 C 142 160, 128 170, 108 174 C 94 176, 88 184, 90 196 C 92 208, 108 214, 126 210 C 142 206, 148 196, 150 184 Z"
+                  fill="#b8671c" stroke="#7d4212" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M118 78 C 96 58, 68 44, 44 42 C 26 41, 18 54, 24 70 C 30 86, 54 102, 84 116 C 104 126, 128 134, 148 140"
+                  fill="none" stroke="#5b2f0c" stroke-width="4.5" stroke-linecap="round" opacity=".78"/>
+            <circle cx="58" cy="150" r="12" fill="#fdf3d8" stroke="#7d4212" stroke-width="2.5"/>
+            <circle cx="96" cy="196" r="8" fill="#fdf3d8" stroke="#7d4212" stroke-width="2.2"/>
+        </g>
+        <g id="b2-wings">
+            <path d="M150 150 C 138 96, 104 48, 58 34 C 12 20, 4 66, 30 108 C 44 130, 56 140, 66 148 C 52 152, 40 162, 34 176 C 20 206, 52 226, 94 218 C 122 212, 142 192, 150 172 Z"
+                  fill="#6f8bd4" stroke="#2c3f74" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M150 150 C 142 160, 128 170, 108 174 C 94 176, 88 184, 90 196 C 92 208, 108 214, 126 210 C 142 206, 148 196, 150 184 Z"
+                  fill="#4d63a8" stroke="#2c3f74" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M140 74 C 118 54, 84 38, 52 40" fill="none" stroke="#26355f" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+            <path d="M126 102 C 104 88, 78 74, 56 70" fill="none" stroke="#26355f" stroke-width="3.4" stroke-linecap="round" opacity=".6"/>
+            <circle cx="58" cy="150" r="12" fill="#f4f0ff" stroke="#2c3f74" stroke-width="2.5"/>
+            <circle cx="96" cy="196" r="8" fill="#f4f0ff" stroke="#2c3f74" stroke-width="2.2"/>
+        </g>
+        <g id="b1-ant">
+            <path d="M150 108 C 144 84, 130 62, 112 46" fill="none" stroke="#4a2a10" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M150 108 C 134 80, 120 62, 98 50" fill="none" stroke="#4a2a10" stroke-width="3.2" stroke-linecap="round"/>
+            <circle cx="110" cy="44" r="4" fill="#4a2a10"/>
+            <circle cx="96" cy="48" r="4" fill="#4a2a10"/>
+        </g>
+        <g id="b2-ant">
+            <path d="M150 108 C 144 84, 130 62, 112 46" fill="none" stroke="#25314f" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M150 108 C 134 80, 120 62, 98 50" fill="none" stroke="#25314f" stroke-width="3.2" stroke-linecap="round"/>
+            <circle cx="110" cy="44" r="4" fill="#25314f"/>
+            <circle cx="96" cy="48" r="4" fill="#25314f"/>
+        </g>
+        <g id="b1-preview">
+            <use href="#b1-wings"/>
+            <use href="#b1-ant"/>
+            <g transform="translate(300,0) scale(-1,1)">
+                <use href="#b1-wings"/>
+                <use href="#b1-ant"/>
+            </g>
+            <ellipse cx="150" cy="86" rx="13" ry="15" fill="#5b3a1c" stroke="#3d2410" stroke-width="2"/>
+            <circle cx="150" cy="68" r="10" fill="#6b4623" stroke="#3d2410" stroke-width="2"/>
+            <ellipse cx="150" cy="132" rx="19" ry="60" fill="#5b3a1c" stroke="#3d2410" stroke-width="2.4"/>
+            <ellipse cx="150" cy="192" rx="10" ry="22" fill="#4a2f17" stroke="#3d2410" stroke-width="2"/>
+        </g>
+        <g id="b2-preview">
+            <use href="#b2-wings"/>
+            <use href="#b2-ant"/>
+            <g transform="translate(300,0) scale(-1,1)">
+                <use href="#b2-wings"/>
+                <use href="#b2-ant"/>
+            </g>
+            <ellipse cx="150" cy="86" rx="13" ry="15" fill="#2a3757" stroke="#1a2439" stroke-width="2"/>
+            <circle cx="150" cy="68" r="10" fill="#39486e" stroke="#1a2439" stroke-width="2"/>
+            <ellipse cx="150" cy="132" rx="19" ry="60" fill="#2a3757" stroke="#1a2439" stroke-width="2.4"/>
+            <ellipse cx="150" cy="192" rx="10" ry="22" fill="#222c46" stroke="#1a2439" stroke-width="2"/>
+        </g>
+    </defs>
+</svg>
+
+<!-- ================= 页面0：主页 ================= -->
+<div id="page0" class="page">
+    <h1>蝴蝶标本制作主页</h1>
+    <p class="tip-text">请点击下方按钮，进入标本制作流程</p>
+    <button onclick="switchPage('page1')">开始制作</button>
+</div>
+
+<!-- ================= 页面1：主界面 ================= -->
+<div id="page1" class="page">
+    <h1>标本制作</h1>
+    <p class="tip-text">点击下方按钮选择蝴蝶</p>
+    <button onclick="switchPage('page2')">制作标本</button>
+</div>
+
+<!-- ================= 页面2：蝴蝶选择（使用后续标本台同款卡通蝴蝶） ================= -->
+<div id="page2" class="page">
+    <h1>选择蝴蝶标本</h1>
+    <p class="tip-text">点击蝴蝶选择你想要制作的标本</p>
+    <div class="butterfly-box">
+        <div class="butterfly-item" onclick="selectButterfly(1)">
+            <div class="pic" id="pic1">
+                <svg class="butterfly-preview" viewBox="0 0 300 300" role="img" aria-label="橙蛱蝶卡通蝴蝶">
+                    <use href="#b1-preview"/>
+                </svg>
+            </div>
+            <div class="name">蝴蝶一号 · <b id="name1">橙蛱蝶</b></div>
+        </div>
+        <div class="butterfly-item" onclick="selectButterfly(2)">
+            <div class="pic" id="pic2">
+                <svg class="butterfly-preview" viewBox="0 0 300 300" role="img" aria-label="蓝闪蝶卡通蝴蝶">
+                    <use href="#b2-preview"/>
+                </svg>
+            </div>
+            <div class="name">蝴蝶二号 · <b id="name2">蓝闪蝶</b></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 页面3：标本制作流程 ================= -->
+<div id="page3" class="page">
+    <div class="maker">
+        <h1>开始制作标本</h1>
+        <div class="specimen-info" id="selectInfo">尚未选择蝴蝶</div>
+
+        <div class="maker-grid">
+            <!-- 标本台 / 标本盒 -->
+            <div class="stage" id="stage">
+                <div class="photo-hint">实拍参考</div>
+                <div class="photo" id="photo" onclick="openPhotoViewer()" title="点击查看大图" style="pointer-events:none"></div>
+                <svg viewBox="0 0 300 300" role="img" aria-label="标本台示意">
+                    <!-- 展翅板纹理 -->
+                    <g class="board-lines">
+                        <rect x="46" y="24" width="208" height="252" rx="6" fill="#e8dcc4" stroke="#c8b697" stroke-width="2"/>
+                        <line x1="150" y1="24" x2="150" y2="276" stroke="#b9a68e" stroke-width="3"/>
+                        <line x1="46" y1="70" x2="254" y2="70" stroke="#d6c7ab" stroke-width="1.5" stroke-dasharray="6 5"/>
+                        <line x1="46" y1="230" x2="254" y2="230" stroke="#d6c7ab" stroke-width="1.5" stroke-dasharray="6 5"/>
+                    </g>
+                    <!-- 示意蝴蝶（左翅镜像右翅），随选中的蝴蝶换花纹 -->
+                    <g id="specimen">
+                        <g class="wing left" id="wingL">
+                            <use href="#b1-wings"/>
+                            <use href="#b1-ant"/>
+                        </g>
+                        <g class="wing right" id="wingR" transform="translate(300,0) scale(-1,1)">
+                            <use href="#b1-wings"/>
+                            <use href="#b1-ant"/>
+                        </g>
+                        <ellipse cx="150" cy="86" rx="13" ry="15" fill="#5b3a1c" stroke="#3d2410" stroke-width="2"/>
+                        <circle cx="150" cy="68" r="10" fill="#6b4623" stroke="#3d2410" stroke-width="2"/>
+                        <ellipse cx="150" cy="132" rx="19" ry="60" fill="#5b3a1c" stroke="#3d2410" stroke-width="2.4"/>
+                        <ellipse cx="150" cy="192" rx="10" ry="22" fill="#4a2f17" stroke="#3d2410" stroke-width="2"/>
+                    </g>
+                    <!-- 固定针 -->
+                    <g class="pin">
+                        <line x1="150" y1="96" x2="150" y2="150" stroke="#9aa3ad" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="150" cy="92" r="7" fill="#c94f4f" stroke="#8f3232" stroke-width="2"/>
+                    </g>
+                </svg>
+                <div class="actions" style="margin-top:12px">
+                    <button class="ghost" onclick="openPhotoViewer()">查看原图</button>
+                </div>
+            </div>
+
+            <!-- 步骤面板 -->
+            <div class="panel">
+                <div class="steps" id="stepBar"></div>
+                <div class="card">
+                    <div class="stage-no" id="stageNo">第 1 步 / 共 5 步</div>
+                    <h2 id="stepTitle">—</h2>
+                    <p id="stepDesc">—</p>
+                    <ul id="stepTips"></ul>
+                </div>
+                <div class="progress"><i id="progressBar"></i></div>
+                <div class="actions">
+                    <button class="ghost" id="prevBtn" onclick="prevStep()">上一步</button>
+                    <button id="nextBtn" onclick="nextStep()">下一步</button>
+                    <button class="ghost" onclick="switchPage('page2')">重新选择蝴蝶</button>
+                    <button class="ghost" onclick="goHome()">返回主页</button>
+                </div>
+                <div class="done-badge" id="doneBadge">
+                    🎉 标本制作完成！把这张标本卡放进阴凉干燥的标本柜，记得放干燥剂和防虫樟脑。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 参考原图查看器 ================= -->
+<div class="viewer" id="photoViewer" onclick="closePhotoViewer()">
+    <div class="viewer-inner">
+        <img id="viewerImg" src="" alt="参考原图">
+        <div class="cap" id="viewerCap"></div>
+        <div class="cap" style="opacity:.7;font-size:13px">点击空白处或按 Esc 关闭</div>
+    </div>
+</div>
+
+<!-- ================= 欢迎弹窗 ================= -->
+<div class="mask" id="welcomeMask">
+    <div class="modal">
+        <h2>欢迎来到蝴蝶标本制作</h2>
+        <p>你将体验完整的标本流程：<b>还软 → 针插固定 → 展翅 → 干燥 → 装盒</b>。<br>点击下方按钮开始你的制作之旅吧。</p>
+        <button onclick="closeWelcome()">开始制作之旅</button>
+    </div>
+</div>
+
+<script>
+/* ===== 图片与蝴蝶信息集中在这里，换图只改这一段 ===== */
+const PHOTOS = {
+    1: { src: 'butterfly1.jpg', stageSrc: 'butterfly-desktop.png', name: '蝴蝶一号', species: '橙蛱蝶', wings: '#b1-wings', ant: '#b1-ant',
+         body: { thorax: '#5b3a1c', head: '#6b4623', stroke: '#3d2410', abdomen: '#4a2f17' } },
+    2: { src: 'butterfly2.jpg', stageSrc: 'butterfly-hero.png', name: '蝴蝶二号', species: '蓝闪蝶', wings: '#b2-wings', ant: '#b2-ant',
+         body: { thorax: '#2a3757', head: '#39486e', stroke: '#1a2439', abdomen: '#222c46' } }
+};
+
+/* ===== 状态 ===== */
+let selectedId = 0;        // 用户选择的蝴蝶编号
+let stepIndex = 0;         // 当前步骤下标
+
+/* ===== 五个制作步骤 ===== */
+const STEPS = [
+    {
+        key: 'soften', title: '还软', stage: 'soften',
+        desc: '把干硬的蝴蝶标本放进还软缸，让它重新变得柔软可动。',
+        tips: ['还软缸底部铺湿沙或湿棉花，滴几滴石炭酸防霉。', '把蝴蝶连三角纸包一起放进去，盖严静置 12–24 小时。', '判断标准：翅膀可以轻松拨动、触角不再一碰就断。']
+    },
+    {
+        key: 'board', title: '针插固定', stage: 'board',
+        desc: '取出还软的蝴蝶，用昆虫针把身体固定在展翅板的沟槽里。',
+        tips: ['针从胸部背面的正中央垂直插入，针尖穿过腹面。', '把蝴蝶放进展翅板中沟，翅膀基部与板面齐平。', '胸部两侧各插一根针，把身体夹稳不要歪斜。']
+    },
+    {
+        key: 'spread', title: '展翅', stage: 'opened',
+        desc: '用硫酸纸压住翅膀，把前后翅展开到自然姿态后固定。',
+        tips: ['先展前翅：前翅后缘拉成一条与身体垂直的直线。', '再展后翅：后翅前缘轻搭在前翅后缘下方，不要重叠过多。', '盖上硫酸纸条，四周插针压紧，触角也要摆正压住。']
+    },
+    {
+        key: 'dry', title: '干燥', stage: 'opened dry',
+        desc: '保持展翅姿态，把标本放在通风阴凉处彻底干燥定型。',
+        tips: ['室温阴干 5–10 天，切勿日晒或用热风直吹。', '潮湿地区可用 40℃ 左右的烘干箱，时间缩短到 1–2 天。', '中途别去翻动，翅膀回软变形就前功尽弃了。']
+    },
+    {
+        key: 'box', title: '装盒', stage: 'opened dry finish',
+        desc: '定型后拔掉固定针，把标本装进标本盒并贴上采集标签。',
+        tips: ['先取下硫酸纸和压针，再从胸部把主针垂直拔出。', '盒内放干燥剂与樟脑丸，防潮防虫。', '标签写清种类、采集地点、采集日期和采集人。']
+    }
+];
+
+/* ===== 页面切换 ===== */
+function switchPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ===== 欢迎弹窗 ===== */
+function closeWelcome() {
+    document.getElementById('welcomeMask').classList.remove('show');
+    switchPage('page0');
+}
+
+/* ===== 选择蝴蝶 ===== */
+function selectButterfly(num) {
+    selectedId = num;
+    stepIndex = 0;
+    const p = PHOTOS[num];
+    document.getElementById('selectInfo').innerText = '你选择了【' + p.name + ' · ' + p.species + '】，开始制作！';
+    applyTheme(num);
+    renderStep();
+    switchPage('page3');
+}
+
+/* 把选中的蝴蝶应用到标本台：透明图片上台，缺少图片时回退到示意花纹 */
+function applyTheme(num) {
+    const t = PHOTOS[num];
+
+    document.querySelectorAll('#specimen .wing use').forEach(u => {
+        u.setAttribute('href', t.wings);
+        u.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', t.wings);
+    });
+
+    const body = document.querySelectorAll('#specimen ellipse, #specimen circle');
+    if (body.length >= 4) {
+        body[0].setAttribute('fill', t.body.thorax);  body[0].setAttribute('stroke', t.body.stroke);
+        body[1].setAttribute('fill', t.body.head);    body[1].setAttribute('stroke', t.body.stroke);
+        body[2].setAttribute('fill', t.body.thorax);  body[2].setAttribute('stroke', t.body.stroke);
+        body[3].setAttribute('fill', t.body.abdomen); body[3].setAttribute('stroke', t.body.stroke);
+    }
+
+    // 真实蝴蝶图片替换标本台上的卡通蝴蝶；加载失败时保留 SVG 兜底
+    const photo = document.getElementById('photo');
+    photo.classList.remove('failed', 'mirror');
+    const probe = new Image();
+    probe.onload = function () {
+        photo.style.setProperty('--photo', 'url("' + t.stageSrc + '")');
+        document.getElementById('stage').classList.add('has-photo');
+        photo.style.pointerEvents = 'auto';
+    };
+    probe.onerror = function () {
+        photo.classList.add('failed');          // 隐藏，仅保留示意蝴蝶
+        photo.style.pointerEvents = 'none';
+        document.getElementById('stage').classList.remove('has-photo');
+    };
+    probe.src = t.stageSrc;
+}
+
+/* ===== 参考原图查看器 ===== */
+function openPhotoViewer() {
+    if (!selectedId) return;
+    const p = PHOTOS[selectedId];
+    document.getElementById('viewerImg').src = p.src;
+    document.getElementById('viewerCap').innerText = p.name + ' · ' + p.species + '（' + p.src + '）';
+    document.getElementById('photoViewer').classList.add('show');
+}
+function closePhotoViewer() {
+    document.getElementById('photoViewer').classList.remove('show');
+}
+
+/* ===== 步骤渲染 ===== */
+function renderStep() {
+    const step = STEPS[stepIndex];
+
+    // 顶部步骤条
+    document.getElementById('stepBar').innerHTML = STEPS.map((s, i) => {
+        const cls = i < stepIndex ? 'done' : (i === stepIndex ? 'now' : '');
+        return '<div class="step-dot ' + cls + '"><span class="idx">' + (i + 1) + '</span>' + s.title + '</div>';
+    }).join('');
+
+    // 文案
+    document.getElementById('stageNo').innerText = '第 ' + (stepIndex + 1) + ' 步 / 共 ' + STEPS.length + ' 步';
+    document.getElementById('stepTitle').innerText = step.title;
+    document.getElementById('stepDesc').innerText = step.desc;
+    document.getElementById('stepTips').innerHTML = step.tips.map(t => '<li>' + t + '</li>').join('');
+
+    // 进度
+    document.getElementById('progressBar').style.width = ((stepIndex + 1) / STEPS.length * 100) + '%';
+
+    // 标本台形态（has-photo 由图片加载结果控制，这里保留）
+    const stage = document.getElementById('stage');
+    const hasPhoto = stage.classList.contains('has-photo');
+    stage.className = 'stage ' + step.stage + (hasPhoto ? ' has-photo' : '');
+
+    // 按钮
+    document.getElementById('prevBtn').disabled = stepIndex === 0;
+    document.getElementById('nextBtn').innerText = stepIndex === STEPS.length - 1 ? '完成制作' : '下一步';
+    document.getElementById('doneBadge').classList.toggle('show', stepIndex === STEPS.length - 1);
+}
+
+function nextStep() {
+    if (stepIndex < STEPS.length - 1) { stepIndex++; renderStep(); }
+}
+function prevStep() {
+    if (stepIndex > 0) { stepIndex--; renderStep(); }
+}
+function goHome() {
+    stepIndex = 0;
+    switchPage('page0');
+}
+
+/* ===== 键盘：← → 切步骤，Esc 关弹层 ===== */
+document.addEventListener('keydown', function (e) {
+    if (document.getElementById('photoViewer').classList.contains('show')) {
+        if (e.key === 'Escape') closePhotoViewer();
+        return;
+    }
+    if (!document.getElementById('page3').classList.contains('active')) return;
+    if (e.key === 'ArrowRight') nextStep();
+    if (e.key === 'ArrowLeft') prevStep();
+});
+
+/* ===== 初始化 ===== */
+window.onload = function () {
+    renderStep();
+    document.getElementById('welcomeMask').classList.add('show');
+    switchPage('page0');
+};
+</script>
+</body>
+</html>
